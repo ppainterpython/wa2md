@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wa2md"
+version = "0.1.0"
+description = "Simple conversion of WhatsApp chat export to markdown page"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+wa2md = "wa2md.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wa2md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
