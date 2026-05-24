@@ -15,7 +15,8 @@ def _embed_media(filename: str, path: Optional[Path], media_type: str) -> str:
         return f"[📎 {filename} - not found]"
     path_str = str(path)
     if media_type == "image":
-        return f"![{filename}]({path_str})"
+        # return f"![{filename}]({path_str})"
+        return f"<img src=\"{filename}\" alt=\"{filename}\" width=\"300\" />"
     if media_type == "video":
         return f"[📹 {filename}]({path_str})"
     if media_type == "audio":

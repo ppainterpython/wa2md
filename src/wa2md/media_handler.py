@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import sys
 import tempfile
 import zipfile
 from pathlib import Path
@@ -47,6 +48,10 @@ class MediaHandler:
         if self._file_map is not None:
             return
         if self._source.suffix.lower() == ".zip":
+            if not zipfile.is_zipfile(self._source):
+                print(f"Error: {self._source} is not a valid zip file.", file=sys.stderr)
+                sys.exit(1)
+            print(f"Opening zip: {self._source}")
             self._tmpdir = tempfile.TemporaryDirectory(prefix="wa2md_")
             dest = Path(self._tmpdir.name)
             with zipfile.ZipFile(self._source, "r") as zf:
@@ -54,6 +59,7 @@ class MediaHandler:
             self._media_dir = dest
         else:
             self._media_dir = self._source
+            print(f"Opening directory: {self._source}")
         self._file_map = self._build_map(self._media_dir)
 
     @staticmethod

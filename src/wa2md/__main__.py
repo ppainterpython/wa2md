@@ -22,7 +22,7 @@ def main() -> None:
     parser.add_argument(
         "input",
         type=Path,
-        help="WhatsApp export: a .zip file or a .txt chat file.",
+        help="WhatsApp export: a .zip file, a folder, or a _chat.txt chat file.",
     )
     parser.add_argument(
         "--media",
@@ -53,29 +53,36 @@ def main() -> None:
         print(f"Error: input file not found: {input_path}", file=sys.stderr)
         sys.exit(1)
 
-    output_path: Path = args.output or input_path.with_suffix(".md")
-    chat_name: str = args.chat_name or input_path.stem.replace("_", " ").replace("-", " ")
+    media_path: Path | None = args.media
+    if media_path is not None and not media_path.exists():
+        print(f"Error: media folder not found: {media_path}", file=sys.stderr)
+        sys.exit(1)
+    media_folder: str | None = str(media_path) if media_path is not None else None
+
+    chat_name: str = args.chat_name or input_path.stem.replace("-", "").replace(" ", "_")
+    chat_name: str = chat_name.replace("__", "_")
+    chat_filename: str = "_chat.txt"
+    output_path: Path = input_path / Path(chat_name).with_suffix(".md")
 
     # Lazy imports so startup is fast even if not needed
     from wa2md.parser import parse_text
     from wa2md.converter import convert
     from wa2md.media_handler import MediaHandler
 
-    is_zip = input_path.suffix.lower() == ".zip"
+    is_dir: bool = input_path.is_dir()
+    is_zip: bool = input_path.suffix.lower() == ".zip" if not is_dir else False
 
-    if is_zip:
-        print(f"Opening zip: {input_path}")
-        if not zipfile.is_zipfile(input_path):
-            print(f"Error: {input_path} is not a valid zip file.", file=sys.stderr)
-            sys.exit(1)
-
+    def process_export_container(kind: str) -> None:
         with MediaHandler(input_path) as media:
             file_map = media.get_file_map()
             txt_name = next(
-                (name for name in file_map if name.endswith(".txt")), None
+                (name for name in file_map if name == chat_filename), None
             )
             if txt_name is None:
-                print("Error: no .txt file found inside the zip.", file=sys.stderr)
+                print(
+                    f"Error: _chat.txt file not found inside {kind}: {input_path}",
+                    file=sys.stderr,
+                )
                 sys.exit(1)
 
             txt_path = file_map[txt_name]
@@ -85,10 +92,16 @@ def main() -> None:
             print(f"Converting {len(messages)} messages…")
             md = convert(messages, media=media, chat_name=chat_name)
             output_path.write_text(md, encoding="utf-8")
+
+    # Chat content in a zip file or directory with media files.
+    if is_zip:
+        process_export_container("zip file")
+    elif is_dir:
+        process_export_container("directory")
     else:
         print(f"Parsing chat: {input_path}")
         text = input_path.read_text(encoding="utf-8", errors="replace")
-        messages = parse_text(text)
+        messages = parse_text(text, media_folder=media_folder)
         print(f"Converting {len(messages)} messages…")
 
         media: MediaHandler | None = None
